@@ -28,6 +28,7 @@ router.post('/register', async (req, res) => {
         first_name: savedUser?.firstName,
         last_name: savedUser?.lastName,
         email: savedUser?.email,
+        userId: newUser?._id
     }});
   } catch (err) {
     res.status(500).json({ error: "Could not register user" });
@@ -45,14 +46,60 @@ router.post('/login', async (req, res) => {
       if (!passwordMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-    
       res.status(200).json({message: "User Login successfully.", result: {
         first_name: user?.firstName,
         last_name: user?.lastName,
         email: user?.email,
+        userId: user?._id
     }});
     } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: error });
     }
   });
+
+
+router.get('/users-record/:id', async (req, res) => {
+  try {
+    const user = await User.findOne({_id: req?.params?.id});
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+    } 
+      res.status(200).json({user});
+
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+})
+
+router.post("/user-update", async(req,res)=>{
+  try{
+    const { firstName, lastName, email, id } = req.body;
+    await User.findOneAndUpdate(
+      { _id: id },
+      { $set: { firstName, lastName, email } },
+    );
+    res.status(200).json({message: "User update successfully."})
+  }catch(e){
+    res.status(500).json({ error: e });
+  }
+})
+
+
+router.post("/update-Password", async(req,res)=>{
+  try{
+    const { id, currentPassword, newPassword } = req.body;
+    const user = await User.findOne({ _id: id });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findOneAndUpdate({ _id: id }, { password: hashedPassword });
+
+    res.status(200).json({ message: 'Password updated successfully' });
+  }catch(e){
+    res.status(500).json({ message: 'Internal server error' });
+  }
+})
 module.exports = router;
